@@ -23,6 +23,14 @@
 			"type": "string",
 			"defaultValue": "0227-044014-mvxp98lb"
 		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "sqlsynapse123-ondemand.sql.azuresynapse.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "gold_db"
+		},
 		"AzureDataLakeStorage1_properties_typeProperties_url": {
 			"type": "string",
 			"defaultValue": "https://kivadatalake.dfs.core.windows.net/"
@@ -58,6 +66,23 @@
 						"value": "[parameters('AzureDatabricks1_accessToken')]"
 					},
 					"existingClusterId": "[parameters('AzureDatabricks1_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('AzureSqlDatabase1_properties_typeProperties_server')]",
+					"database": "[parameters('AzureSqlDatabase1_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SystemAssignedManagedIdentity"
 				}
 			},
 			"dependsOn": []
@@ -244,7 +269,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"items": {
-								"value": "@activity('Lookup1').output.value",
+								"value": "@activity('Lookup1').output.value\n@activity('Get Metadata1').output.childItems",
 								"type": "Expression"
 							},
 							"activities": [
@@ -311,6 +336,37 @@
 											}
 										}
 									]
+								},
+								{
+									"name": "Stored procedure1",
+									"type": "SqlServerStoredProcedure",
+									"dependsOn": [
+										{
+											"activity": "datacopy",
+											"dependencyConditions": [
+												"Completed"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"storedProcedureName": "[[dbo].[CreateSQLServerlessView_gold]",
+										"storedProcedureParameters": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									},
+									"linkedServiceName": {
+										"referenceName": "AzureSqlDatabase1",
+										"type": "LinkedServiceReference"
+									}
 								}
 							]
 						}
@@ -341,6 +397,49 @@
 							"referenceName": "AzureDatabricks1",
 							"type": "LinkedServiceReference"
 						}
+					},
+					{
+						"name": "Get Metadata1",
+						"type": "GetMetadata",
+						"dependsOn": [
+							{
+								"activity": "Notebook1",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "bronze_csv",
+								"type": "DatasetReference",
+								"parameters": {
+									"FolderEntity": {
+										"value": "@activity('Notebook1').output",
+										"type": "Expression"
+									}
+								}
+							},
+							"fieldList": [
+								"childItems"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
 					}
 				],
 				"policy": {
@@ -351,7 +450,8 @@
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/sqlsource')]",
 				"[concat(variables('factoryId'), '/linkedServices/AzureDatabricks1')]",
-				"[concat(variables('factoryId'), '/datasets/bronze_csv')]"
+				"[concat(variables('factoryId'), '/datasets/bronze_csv')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
 			]
 		}
 	]

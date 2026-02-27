@@ -20,6 +20,12 @@
 		"AzureDatabricks1_properties_typeProperties_existingClusterId": {
 			"value": "0227-044014-mvxp98lb"
 		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"value": "sqlsynapse123-ondemand.sql.azuresynapse.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"value": "gold_db"
+		},
 		"SqlServer1_properties_typeProperties_server": {
 			"value": "Ananatha-Aashu12"
 		},
